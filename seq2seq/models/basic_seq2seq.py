@@ -27,6 +27,7 @@ from seq2seq.contrib.seq2seq import helper as tf_decode_helper
 from seq2seq.models.seq2seq_model import Seq2SeqModel
 from seq2seq.graph_utils import templatemethod
 from seq2seq.models import bridges
+from seq2seq import encoders, decoders
 
 
 class BasicSeq2Seq(Seq2SeqModel):
@@ -44,8 +45,8 @@ class BasicSeq2Seq(Seq2SeqModel):
 
   def __init__(self, params, mode, name="basic_seq2seq"):
     super(BasicSeq2Seq, self).__init__(params, mode, name)
-    self.encoder_class = locate(self.params["encoder.class"])
-    self.decoder_class = locate(self.params["decoder.class"])
+    self.encoder_class = getattr(encoders, self.params["encoder.class"])
+    self.decoder_class = getattr(decoders, self.params["decoder.class"])
 
   @staticmethod
   def default_params():
@@ -62,8 +63,7 @@ class BasicSeq2Seq(Seq2SeqModel):
 
   def _create_bridge(self, encoder_outputs, decoder_state_size):
     """Creates the bridge to be used between encoder and decoder"""
-    bridge_class = locate(self.params["bridge.class"]) or \
-      getattr(bridges, self.params["bridge.class"])
+    bridge_class = getattr(bridges, self.params["bridge.class"])
     return bridge_class(
         encoder_outputs=encoder_outputs,
         decoder_state_size=decoder_state_size,
@@ -103,10 +103,10 @@ class BasicSeq2Seq(Seq2SeqModel):
 
   @templatemethod("encode")
   def encode(self, features, labels):
-    source_embedded = tf.nn.embedding_lookup(self.source_embedding,
-                                             features["source_ids"])
+    # source_embedded = tf.nn.embedding_lookup(self.source_embedding,
+    #                                          features["source_ids"])
     encoder_fn = self.encoder_class(self.params["encoder.params"], self.mode)
-    return encoder_fn(source_embedded, features["source_len"])
+    return encoder_fn(features["source_tokens"], features["source_len"])
 
   @templatemethod("decode")
   def decode(self, encoder_output, features, labels):

@@ -82,7 +82,7 @@ class TextMetricSpec(Configurable, MetricSpec):
     self._separator = self.params["separator"]
     self._postproc_fn = None
     if self.params["postproc_fn"]:
-      self._postproc_fn = locate(self.params["postproc_fn"])
+      self._postproc_fn = getattr(postproc, self.params["postproc_fn"])
       if self._postproc_fn is None:
         raise ValueError("postproc_fn not found: {}".format(
             self.params["postproc_fn"]))
@@ -153,7 +153,7 @@ class TextMetricSpec(Configurable, MetricSpec):
       sliced_hypotheses = [self._postproc_fn(_) for _ in sliced_hypotheses]
       sliced_references = [self._postproc_fn(_) for _ in sliced_references]
 
-    return self.metric_fn(sliced_hypotheses, sliced_references) #pylint: disable=E1102
+    return self.metric_fn(sliced_hypotheses, sliced_references)
 
   def metric_fn(self, hypotheses, references):
     """Calculates the value of the metric.

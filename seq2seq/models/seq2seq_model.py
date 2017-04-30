@@ -195,8 +195,8 @@ class Seq2SeqModel(ModelBase):
     """
 
     # Create vocabulary lookup for source
-    source_vocab_to_id, source_id_to_vocab, source_word_to_count, _ = \
-      vocab.create_vocabulary_lookup_table(self.source_vocab_info.path)
+    # source_vocab_to_id, source_id_to_vocab, source_word_to_count, _ = \
+    #   vocab.create_vocabulary_lookup_table(self.source_vocab_info.path)
 
     # Create vocabulary look for target
     target_vocab_to_id, target_id_to_vocab, target_word_to_count, _ = \
@@ -205,9 +205,9 @@ class Seq2SeqModel(ModelBase):
     # Add vocab tables to graph colection so that we can access them in
     # other places.
     graph_utils.add_dict_to_collection({
-        "source_vocab_to_id": source_vocab_to_id,
-        "source_id_to_vocab": source_id_to_vocab,
-        "source_word_to_count": source_word_to_count,
+        # "source_vocab_to_id": source_vocab_to_id,
+        # "source_id_to_vocab": source_id_to_vocab,
+        # "source_word_to_count": source_word_to_count,
         "target_vocab_to_id": target_vocab_to_id,
         "target_id_to_vocab": target_id_to_vocab,
         "target_word_to_count": target_word_to_count
@@ -221,15 +221,15 @@ class Seq2SeqModel(ModelBase):
                                           self.params["source.max_seq_len"])
 
     # Look up the source ids in the vocabulary
-    features["source_ids"] = source_vocab_to_id.lookup(features[
-        "source_tokens"])
+    # features["source_ids"] = source_vocab_to_id.lookup(features[
+    #     "source_tokens"])
 
     # Maybe reverse the source
     if self.params["source.reverse"] is True:
-      features["source_ids"] = tf.reverse_sequence(
-          input=features["source_ids"],
+      features["source_tokens"] = tf.reverse_sequence(
+          input=features["source_tokens"],
           seq_lengths=features["source_len"],
-          seq_dim=1,
+          seq_dim=2,
           batch_dim=0,
           name=None)
 

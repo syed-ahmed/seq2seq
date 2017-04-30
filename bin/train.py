@@ -56,14 +56,15 @@ tf.flags.DEFINE_string("model", "",
                        """Name of the model class.
                        Can be either a fully-qualified name, or the name
                        of a class defined in `seq2seq.models`.""")
-tf.flags.DEFINE_string("model_params", "{}",
+tf.flags.DEFINE_string("model_params",
+                       "{vocab_target: /Users/luna/workspace/ASLNet/data/processed-data/word_counts.txt}",
                        """YAML configuration string for the model
                        parameters.""")
 
-tf.flags.DEFINE_string("input_pipeline_train", "{}",
+tf.flags.DEFINE_string("input_pipeline_train", """{"class": "VideoCaptioningInputPipeline","params": {"file_input_pattern": "/Users/luna/Downloads/train-curriculum-7-00000-of-00001"}}""",
                        """YAML configuration string for the training
                        data input pipeline.""")
-tf.flags.DEFINE_string("input_pipeline_dev", "{}",
+tf.flags.DEFINE_string("input_pipeline_dev", """{"class": "VideoCaptioningInputPipeline","params": {"file_input_pattern": "/Users/luna/workspace/ASLNet/data/processed-data/val-?????-of-00256"}}""",
                        """YAML configuration string for the development
                        data input pipeline.""")
 
@@ -79,9 +80,9 @@ tf.flags.DEFINE_string("output_dir", None,
                        to. If None, a local temporary directory is created.""")
 
 # Training parameters
-tf.flags.DEFINE_string("schedule", "continuous_train_and_eval",
+tf.flags.DEFINE_string("schedule", None,
                        """Estimator function to call, defaults to
-                       continuous_train_and_eval for local run""")
+                       train_and_evaluate for local run""")
 tf.flags.DEFINE_integer("train_steps", None,
                         """Maximum number of training steps to run.
                          If None, train forever.""")
@@ -114,7 +115,6 @@ tf.flags.DEFINE_boolean("gpu_allow_growth", False,
                         dynamically.""")
 tf.flags.DEFINE_boolean("log_device_placement", False,
                         """Log the op placement to devices""")
-
 
 FLAGS = tf.flags.FLAGS
 
@@ -158,7 +158,7 @@ def create_experiment(output_dir):
       pipeline=train_input_pipeline,
       batch_size=FLAGS.batch_size,
       bucket_boundaries=bucket_boundaries,
-      scope="train_input_fn")
+      mode=tf.contrib.learn.ModeKeys.TRAIN)
 
   # Development data input pipeline
   dev_input_pipeline = input_pipeline.make_input_pipeline_from_def(
@@ -171,7 +171,7 @@ def create_experiment(output_dir):
       pipeline=dev_input_pipeline,
       batch_size=FLAGS.batch_size,
       allow_smaller_final_batch=True,
-      scope="dev_input_fn")
+      mode=tf.contrib.learn.ModeKeys.EVAL)
 
 
   def model_fn(features, labels, params, mode):

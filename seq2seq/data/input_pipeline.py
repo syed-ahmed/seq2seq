@@ -357,3 +357,96 @@ class ImageCaptioningInputPipeline(InputPipeline):
   @property
   def label_keys(self):
     return set(["target_tokens", "target_ids", "target_len"])
+
+
+class VideoCaptioningInputPipeline(InputPipeline):
+    """An input pipeline that reads a TFRecords containing both source
+    and target sequences.
+
+    Params:
+      files: An array of file names to read from.
+      source_field: The TFRecord feature field containing the source text.
+      target_field: The TFRecord feature field containing the target text.
+      source_delimiter: A character to split the source text on. Defaults
+        to  " " (space). For character-level training this can be set to the
+        empty string.
+      target_delimiter: Same as `source_delimiter` but for the target text.
+    """
+
+    @staticmethod
+    def default_params():
+        params = InputPipeline.default_params()
+        params.update({
+            "file_input_pattern": "",
+            "video_field": "video/frames",
+            "image_format": "jpg",
+            "caption_tokens_field": "video/captions",
+            "target_delimiter": " ",
+        })
+        return params
+
+    def make_data_provider(self, **kwargs):
+        data_files = []
+        tf.logging.info(self.params["file_input_pattern"].split(","))
+        for pattern in self.params["file_input_pattern"].split(","):
+            data_files.extend(tf.gfile.Glob(pattern))
+        if not data_files:
+            tf.logging.fatal("Found no input files matching %s", self.params["file_input_pattern"])
+        else:
+            tf.logging.info("Prefetching values from %d files matching %s",
+                            len(data_files), self.params["file_input_pattern"])
+
+        splitter_target = split_tokens_decoder.SplitTokensDecoder(
+            tokens_feature_name="target_tokens",
+            length_feature_name="target_len",
+            prepend_token="SEQUENCE_START",
+            append_token="SEQUENCE_END",
+            delimiter=self.params["target_delimiter"])
+
+        context_keys_to_features = {
+            self.params["caption_tokens_field"]: tf.FixedLenFeature(
+                [], dtype=tf.string),
+        }
+
+        sequence_keys_to_features = {
+            self.params["video_field"]: tf.FixedLenSequenceFeature(
+                [], dtype=tf.string),
+        }
+
+        items_to_handlers = {
+            "source_tokens": tfexample_decoder.Tensor(self.params["video_field"]),
+            "source_len": tfexample_decoder.ItemHandlerCallback(
+                keys=[self.params["video_field"]],
+                func=lambda x: tf.size(x[self.params["video_field"]])),
+            "target_tokens": tfexample_decoder.ItemHandlerCallback(
+                keys=[self.params["caption_tokens_field"]],
+                func=lambda dict: splitter_target.decode(
+                    dict[self.params["caption_tokens_field"]], ["target_tokens"])[0]),
+            "target_len": tfexample_decoder.ItemHandlerCallback(
+                keys=[self.params["caption_tokens_field"]],
+                func=lambda dict: splitter_target.decode(
+                    dict[self.params["caption_tokens_field"]], ["target_len"])[0])
+        }
+
+        decoder = TFSEquenceExampleDecoder(context_keys_to_features, sequence_keys_to_features, items_to_handlers)
+
+        dataset = tf.contrib.slim.dataset.Dataset(
+            data_sources=data_files,
+            reader=tf.TFRecordReader,
+            decoder=decoder,
+            num_samples=None,
+            items_to_descriptions={})
+
+        return tf.contrib.slim.dataset_data_provider.DatasetDataProvider(
+            dataset=dataset,
+            shuffle=self.params["shuffle"],
+            num_epochs=self.params["num_epochs"],
+            **kwargs)
+
+    @property
+    def feature_keys(self):
+        return set(["source_tokens", "source_len"])
+
+    @property
+    def label_keys(self):
+        return set(["target_tokens", "target_len"])
