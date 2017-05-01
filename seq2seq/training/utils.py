@@ -276,6 +276,7 @@ def create_input_fn(pipeline,
 
             thread_id = random.randint(0, 3)
             features_and_labels["source_tokens"] = process_video(features_and_labels["source_tokens"],
+                                                                 features_and_labels["source_len"],
                                                                  is_training=is_training,
                                                                  height=240,
                                                                  early_fusion_value=5,
@@ -321,6 +322,7 @@ def create_input_fn(pipeline,
 
 
 def process_video(encoded_video,
+                  video_length,
                   is_training,
                   height,
                   early_fusion_value,
@@ -359,52 +361,45 @@ def process_video(encoded_video,
 
     # Decode image into a float32 Tensor of shape [?, ?, 3] with values in [0, 1).
     with tf.name_scope("decode", values=[encoded_video]):
-        if frame_format == "jpeg":
-            video = tf.map_fn(lambda x: tf.image.decode_jpeg(x, channels=3), encoded_video, dtype=tf.uint8)
-        else:
-            raise ValueError("Invalid frame image format: %s" % frame_format)
+        input_jpeg_strings = tf.TensorArray(tf.string, video_length)
+        input_jpeg_strings = input_jpeg_strings.unstack(encoded_video)
+        init_array = tf.TensorArray(tf.float32, size=video_length)
 
-    # convert video to float
-    video = tf.map_fn(lambda x: tf.image.convert_image_dtype(x, dtype=tf.float32), video, dtype=tf.float32)
-    # image_summary("original_image", image)
+        def cond(i, ta):
+            return tf.less(i, video_length)
 
-    # crop the video
-    video = tf.map_fn(lambda x: tf.image.resize_image_with_crop_or_pad(x, height, height), video)
+        def body(i, ta):
+            image = input_jpeg_strings.read(i)
+            image = tf.image.decode_jpeg(image, 3, name='decode_image')
+            image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+            assert (resize_height > 0) == (resize_width > 0)
+            image = tf.image.resize_images(image, size=[resize_height, resize_width], method=tf.image.ResizeMethod.BILINEAR)
+            return i + 1, ta.write(i, image)
 
-    # Resize image.
-    assert (resize_height > 0) == (resize_width > 0)
-    if resize_height:
-        video = tf.map_fn(lambda x: tf.image.resize_images(x, size=[resize_height, resize_width],
-                                                           method=tf.image.ResizeMethod.BILINEAR),
-                          video)
+        _, input_image = tf.while_loop(cond, body, [0, init_array])
 
-    # prepare video for early fusion
-    num_frames = tf.shape(video)[0]
-    num_of_fusions = tf.div(num_frames, early_fusion_value)
-    end_frame_index = num_of_fusions * early_fusion_value
-    video = video[0:end_frame_index, :, :, :]
+        video = input_image.stack()
+        num_frames = tf.shape(video)[0]
+        num_of_fusions = tf.div(num_frames, early_fusion_value)
+        end_frame_index = num_of_fusions * early_fusion_value
+        video = video[0:end_frame_index, :, :, :]
+        if is_training:
+            video = distort_video(video, thread_id)
 
-    # Randomly distort the video.
-    if is_training:
-        video = distort_video(video, thread_id)
+        # Rescale to [-1,1] instead of [0, 1]
+        video = tf.map_fn(lambda x: tf.subtract(x, 0.5), video)
+        video = tf.map_fn(lambda x: tf.multiply(x, 2.0), video)
 
-    # Rescale to [-1,1] instead of [0, 1]
-    video = tf.map_fn(lambda x: tf.subtract(x, 0.5), video)
-    video = tf.map_fn(lambda x: tf.multiply(x, 2.0), video)
+        # convert to grayscale
+        video = tf.map_fn(lambda x: tf.image.rgb_to_grayscale(x), video)
 
-    # convert to grayscale
-    video = tf.map_fn(lambda x: tf.image.rgb_to_grayscale(x), video)
+        # reshape video for early fusion
+        video = tf.reshape(video, [num_of_fusions, early_fusion_value, resize_height, resize_width, 1])
 
-    # reshape video for early fusion
-    video = tf.reshape(video, [num_of_fusions, early_fusion_value, resize_height, resize_width, 1])
+        # fuse the frames
+        video = tf.map_fn(lambda x: tf.concat(tf.unstack(x), 2), video)
 
-    # fuse the frames
-    video = tf.map_fn(lambda x: tf.concat(tf.unstack(x), 2), video)
-
-    # image_summary("resized_image", image)
-    # image_summary("final_image", image)
-
-    return video
+        return video
 
 
 def distort_video(video, thread_id):

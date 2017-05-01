@@ -61,7 +61,7 @@ tf.flags.DEFINE_string("model_params",
                        """YAML configuration string for the model
                        parameters.""")
 
-tf.flags.DEFINE_string("input_pipeline_train", """{"class": "VideoCaptioningInputPipeline","params": {"file_input_pattern": "/Users/luna/Downloads/train-curriculum-7-00000-of-00001"}}""",
+tf.flags.DEFINE_string("input_pipeline_train", """{"class": "VideoCaptioningInputPipeline","params": {"file_input_pattern": "/Users/luna/Downloads/train-curriculum-0-0000?-of-00256"}}""",
                        """YAML configuration string for the training
                        data input pipeline.""")
 tf.flags.DEFINE_string("input_pipeline_dev", """{"class": "VideoCaptioningInputPipeline","params": {"file_input_pattern": "/Users/luna/workspace/ASLNet/data/processed-data/val-?????-of-00256"}}""",
