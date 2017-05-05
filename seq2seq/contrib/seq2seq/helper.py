@@ -384,10 +384,8 @@ class ScheduledOutputTrainingHelper(TrainingHelper):
   def sample(self, time, outputs, state, name=None):
     with ops.name_scope(name, "ScheduledOutputTrainingHelperSample",
                         [time, outputs, state]):
-      sampler = bernoulli.Bernoulli(probs=self._sampling_probability)
-      return math_ops.cast(
-          sampler.sample(sample_shape=self.batch_size, seed=self._seed),
-          dtypes.bool)
+      sampler = bernoulli.Bernoulli(probs=self._sampling_probability, dtype=dtypes.int32)
+      return sampler.sample(sample_shape=self.batch_size, seed=self._seed)
 
   def next_inputs(self, time, outputs, state, sample_ids, name=None):
     with ops.name_scope(name, "ScheduledOutputTrainingHelperNextInputs",
@@ -419,7 +417,7 @@ class ScheduledOutputTrainingHelper(TrainingHelper):
 
         if self._next_input_layer is None:
           return array_ops.where(
-              sample_ids, maybe_concatenate_auxiliary_inputs(outputs),
+              math_ops.cast(sample_ids, dtypes.bool), maybe_concatenate_auxiliary_inputs(outputs).cell_output,
               base_next_inputs)
 
         where_sampling = math_ops.cast(
