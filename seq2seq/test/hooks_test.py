@@ -94,7 +94,7 @@ class TestTrainSampleHook(tf.test.TestCase):
       outfile = os.path.join(self.sample_dir, "samples_000000.txt")
       with open(outfile, "rb") as readfile:
         self.assertIn("Prediction followed by Target @ Step 0",
-                      readfile.read().decode("utf-8"))
+                      tf.compat.as_text(readfile.read()))
 
       # Should not trigger for step 9
       sess.run(tf.assign(global_step, 9))
@@ -108,7 +108,7 @@ class TestTrainSampleHook(tf.test.TestCase):
       outfile = os.path.join(self.sample_dir, "samples_000010.txt")
       with open(outfile, "rb") as readfile:
         self.assertIn("Prediction followed by Target @ Step 10",
-                      tf.compat.as_text(readfile.read()).decode("utf-8"))
+                      tf.compat.as_text(readfile.read()))
 
 
 class TestMetadataCaptureHook(tf.test.TestCase):
