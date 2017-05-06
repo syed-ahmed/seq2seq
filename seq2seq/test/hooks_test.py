@@ -39,16 +39,16 @@ class TestPrintModelAnalysisHook(tf.test.TestCase):
   def test_begin(self):
     model_dir = tempfile.mkdtemp()
     outfile = tempfile.NamedTemporaryFile()
-    tf.get_variable("weigths", [128, 128])
+    tf.get_variable("weights", [128, 128])
     hook = hooks.PrintModelAnalysisHook(
         params={}, model_dir=model_dir, run_config=tf.contrib.learn.RunConfig())
     hook.begin()
 
     with gfile.GFile(os.path.join(model_dir, "model_analysis.txt")) as file:
-      file_contents = file.read().strip()
+      file_contents = tf.compat.as_text(file.read()).strip()
 
     self.assertEqual(file_contents.decode(), "_TFProfRoot (--/16.38k params)\n"
-                     "  weigths (128x128, 16.38k/16.38k params)")
+                     "  weights (128x128, 16.38k/16.38k params)")
     outfile.close()
 
 
@@ -108,7 +108,7 @@ class TestTrainSampleHook(tf.test.TestCase):
       outfile = os.path.join(self.sample_dir, "samples_000010.txt")
       with open(outfile, "rb") as readfile:
         self.assertIn("Prediction followed by Target @ Step 10",
-                      readfile.read().decode("utf-8"))
+                      tf.compat.as_text(readfile.read()).decode("utf-8"))
 
 
 class TestMetadataCaptureHook(tf.test.TestCase):
@@ -125,7 +125,7 @@ class TestMetadataCaptureHook(tf.test.TestCase):
   def test_capture(self):
     global_step = tf.contrib.framework.get_or_create_global_step()
     # Some test computation
-    some_weights = tf.get_variable("weigths", [2, 128])
+    some_weights = tf.get_variable("weights", [2, 128])
     computation = tf.nn.softmax(some_weights)
 
     hook = hooks.MetadataCaptureHook(
