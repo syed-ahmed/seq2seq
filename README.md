@@ -1,3 +1,7 @@
+# Note: I'm not actively working on this project anymore. Please email me at syed.ahmed.emails@gmail.com if you have any questions.
+
+
+
 [![CircleCI](https://circleci.com/gh/google/seq2seq.svg?style=svg)](https://circleci.com/gh/google/seq2seq)
 
 ---
